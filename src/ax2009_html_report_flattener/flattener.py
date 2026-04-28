@@ -70,6 +70,9 @@ NUMERIC_HEADER_WORDS = (
     "Обороты",
 )
 
+TECHNICAL_COLUMN_RE = re.compile(r"^Column(?:_\d+)?$")
+SERVICE_ONLY_VALUES = {"", "*"}
+
 
 @dataclass
 class ConversionStats:
@@ -155,7 +158,37 @@ def flatten_html(html: str, stats: ConversionStats | None = None) -> FlatTable:
             stats.skipped_rows += 1
         i += 1
 
+    output_headers, output_rows, cleanup_warnings = cleanup_technical_columns(output_headers, output_rows)
+    stats.warnings.extend(cleanup_warnings)
     return FlatTable(headers=output_headers, rows=output_rows, stats=stats)
+
+
+def cleanup_technical_columns(
+    headers: list[str], rows: list[dict[str, object]]
+) -> tuple[list[str], list[dict[str, object]], list[str]]:
+    """Drop empty/marker-only unnamed technical columns from the flat table."""
+    cleaned_headers: list[str] = []
+    removed_headers: set[str] = set()
+    warnings: list[str] = []
+
+    for header in headers:
+        if not _is_technical_column(header):
+            cleaned_headers.append(header)
+            continue
+
+        values = [row.get(header) for row in rows]
+        if all(_is_service_only_value(value) for value in values):
+            removed_headers.add(header)
+            continue
+
+        cleaned_headers.append(header)
+        warnings.append(f"Unnamed technical column {header!r} contains data and was kept.")
+
+    cleaned_rows = [
+        {header: value for header, value in row.items() if header not in removed_headers}
+        for row in rows
+    ]
+    return cleaned_headers, cleaned_rows, warnings
 
 
 def _trim_trailing_empty(values: list[str]) -> list[str]:
@@ -309,3 +342,15 @@ def _merge_headers(existing: list[str], new_headers: list[str]) -> list[str]:
 def _remember_header(stats: ConversionStats, header: list[str]) -> None:
     if header and header not in stats.detected_headers:
         stats.detected_headers.append(header)
+
+
+def _is_technical_column(header: str) -> bool:
+    return bool(TECHNICAL_COLUMN_RE.fullmatch(header.strip()))
+
+
+def _is_service_only_value(value: object) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip() in SERVICE_ONLY_VALUES
+    return False

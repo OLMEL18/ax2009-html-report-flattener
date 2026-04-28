@@ -45,6 +45,28 @@ python -m ax2009_html_report_flattener.cli --gui
 
 The GUI lets you browse for a `.htm` / `.html` report, auto-fills the output `.xlsx` path, and shows exported/skipped row counts after conversion.
 
+## Build Windows executable
+
+Install PyInstaller:
+
+```powershell
+python -m pip install pyinstaller
+```
+
+Build the one-file Windows GUI executable:
+
+```powershell
+.\build_exe.ps1
+```
+
+The generated executable is written to:
+
+```powershell
+dist\ax2009-html-report-flattener.exe
+```
+
+The generated EXE is a build artifact and should not be committed.
+
 ## Confidentiality Warning
 
 Do not commit real business reports, company data, vendor data, item data, account balances, transaction data, or generated customer workbooks to this repository. Use only synthetic or anonymized fixtures for tests and examples.
